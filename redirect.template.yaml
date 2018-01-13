@@ -1,0 +1,161 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  Version:
+    Type: String
+    Default: unknown
+    Description: Build number that deployed this stack.
+  ApiName:
+    Type: String
+    Default: Redirecter
+    Description: Build number that deployed this stack.
+  StageName:
+    Type: String
+    Description: The name of the stage.
+    Default: v1
+  RedirectDomain:
+    Type: String
+    Description: The fully qualifed url to redirect things to.
+    Default: https://mcgilldevtech.com
+
+Resources:
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Redirect all requests
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      FailOnWarnings: false
+      Name: !Ref ApiName
+
+  ProxyResource:
+    Type: AWS::ApiGateway::Resource
+    DependsOn: RestApi
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt [RestApi, RootResourceId]
+      PathPart: '{proxy+}'
+
+  Method:
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - RestApi
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !GetAtt [RestApi, RootResourceId]
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Lambda.Arn}/invocations
+
+  MethodProxy:
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - RestApi
+      - ProxyResource
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Lambda.Arn}/invocations
+
+  Stage:
+    Type: AWS::ApiGateway::Stage
+    DependsOn: RestApi
+    Properties:
+      DeploymentId: !Ref Deployment
+      RestApiId: !Ref RestApi
+      StageName: !Ref StageName
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: Stage
+    Properties:
+      ApiStages:
+      -
+        ApiId: !Ref RestApi
+        Stage: !Ref StageName
+      Description: Redirect
+      UsagePlanName: redirect-all-requests
+
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: Method
+    Properties:
+      Description: Redirect Deployment
+      RestApiId: !Ref RestApi
+      # StageName: !Ref StageName
+
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: >
+          exports.handler = (event, context, callback) => {
+              console.log(JSON.stringify(event));
+              callback(null, {
+                isBase64Encoded: false,
+                statusCode: 301,
+                headers: {
+                  'Content-Type': 'text/html',
+                  'Location' : process.env.REDIRECT_DOMAIN
+                },
+                body:null,
+              });
+          };
+      Environment:
+        Variables:
+          REDIRECT_DOMAIN: !Ref RedirectDomain
+      Description: Redirects all web requests
+      FunctionName: url-redirect
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt Role.Arn
+      Runtime: nodejs6.10
+      Timeout: 3
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: basic-lambda-execution-role
+      ManagedPolicyArns:
+        - !Ref BasicLambdaExecutionPolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  BasicLambdaExecutionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Basic Lambda Execution.
+      ManagedPolicyName: basic-lambda-execution-managed-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Action: [ "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents" ]
+            Effect:  Allow
+            Resource: "arn:aws:logs:*:*:*"
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt Lambda.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*/*
