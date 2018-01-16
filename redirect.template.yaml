@@ -2,22 +2,28 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Parameters:
-  Version:
+  FromDomain:
     Type: String
-    Default: unknown
-    Description: Build number that deployed this stack.
+    Description: The domain a user is requesting.
+  ToDomain:
+    Type: String
+    Description: The domain you would like your users to be redirected to.
+  ToProtocol:
+    Type: String
+    Description: The protocol to prefix ToDomain.
+    Default: https
+  HostedZoneId:
+    Type: String
+    Description: The HostedZoneId of the ToDomain.
+  FromDomainAcmArn:
+    Type: String
+    Description: The Arn of the FromDomain.
   ApiName:
     Type: String
     Default: Redirecter
-    Description: Build number that deployed this stack.
   StageName:
     Type: String
-    Description: The name of the stage.
     Default: v1
-  RedirectDomain:
-    Type: String
-    Description: The fully qualifed url to redirect things to.
-    Default: https://mcgilldevtech.com
 
 Resources:
   RestApi:
@@ -92,7 +98,50 @@ Resources:
     Properties:
       Description: Redirect Deployment
       RestApiId: !Ref RestApi
-      # StageName: !Ref StageName
+
+  DomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      CertificateArn: !Ref FromDomainAcmArn
+      DomainName: !Ref FromDomain
+      EndpointConfiguration:
+        Types:
+          - EDGE
+
+  BasePathMapping:
+    DependsOn:
+      - DomainName
+      - RestApi
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref DomainName
+      RestApiId: !Ref RestApi
+      # BasePath: String
+      Stage: !Ref Stage
+
+  RecordSetA:
+    DependsOn: DomainName
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt [DomainName, DistributionDomainName]
+        EvaluateTargetHealth: false
+        HostedZoneId: Z2FDTNDATAQYW2
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Join [ "", [ !Ref FromDomain, "." ] ]
+      Type: A
+
+  RecordSetAAAA:
+    DependsOn: DomainName
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt [DomainName, DistributionDomainName]
+        EvaluateTargetHealth: false
+        HostedZoneId: Z2FDTNDATAQYW2
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Join [ "", [ !Ref FromDomain, . ] ]
+      Type: AAAA
 
   Lambda:
     Type: AWS::Lambda::Function
@@ -106,21 +155,21 @@ Resources:
                 statusCode: 301,
                 headers: {
                   'Content-Type': 'text/html',
-                  'Location' : process.env.REDIRECT_DOMAIN
+                  'Location' : process.env.REDIRECT_DOMAIN + event.path
                 },
                 body:null,
               });
           };
       Environment:
         Variables:
-          REDIRECT_DOMAIN: !Ref RedirectDomain
+          REDIRECT_DOMAIN: !Join [ "", [ !Ref ToProtocol, "://", !Ref ToDomain ] ]
       Description: Redirects all web requests
       FunctionName: url-redirect
       Handler: index.handler
       MemorySize: 128
       Role: !GetAtt Role.Arn
       Runtime: nodejs6.10
-      Timeout: 3
+      Timeout: 1
 
   Role:
     Type: AWS::IAM::Role
