@@ -116,7 +116,6 @@ Resources:
     Properties:
       DomainName: !Ref DomainName
       RestApiId: !Ref RestApi
-      # BasePath: String
       Stage: !Ref Stage
 
   RecordSetA:
