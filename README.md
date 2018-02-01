@@ -4,7 +4,9 @@ A serverless solution to handle url redirects for static sites.
 ## Prerequisites
 - ARN to a valid Amazon Certificate Mangager (ACM) certificate that covers your `FromDomain` name.
 - `HostedZoneId` of your `FromDomain`'s Route53 record.
-> Note: If you previously used your `FromDomain` as a CloudFront alias you must remove that before deploying this cloudformation. Domains can only be associated with 1 CloudFront distribution.
+#### Notes:  
+  - If you previously used your `FromDomain` as a CloudFront alias you must remove that before deploying this cloudformation. Domains can only be associated with 1 CloudFront distribution.
+  - Ensure you don't have any existing `A` or `AAAA` Route53 records for the `FromDomain`, these will be created for you. If you have prior records the deployment will fail.
 
 ## Setup
 - Run `bash run.sh deploy <FromDomain> <ToProtocol> <ToDomain> <HostedZoneId> <AcmArnForFromDomain>`
