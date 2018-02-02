@@ -17,7 +17,7 @@ Parameters:
     Description: The HostedZoneId of the ToDomain.
   FromDomainAcmArn:
     Type: String
-    Description: The Arn of the FromDomain.
+    Description: The Arn of the FromDomain Certificate.
   ApiName:
     Type: String
     Default: Redirecter
