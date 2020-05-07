@@ -11,7 +11,7 @@ A serverless solution to handle url redirects for static sites.
 ## Setup
 - Run `bash run.sh deploy <FromDomain> <ToProtocol> <ToDomain> <HostedZoneId> <AcmArnForFromDomain>`
   - For example `bash run.sh deploy www.mcgilldevtech.com https mcgilldevtech.com ABC123 arn:aws:acm:us-east-1:123456789012:certificate/abc123` to redirect `www` to your `apex` domain (or visa versa).
-- Be patient, deploying the `AWS::ApiGateway::DomainName` doesn't break and speed records!
+- Be patient, deploying the `AWS::ApiGateway::DomainName` doesn't break any speed records!
 - Hit the `FromDomain` from your browser and you should be redirected to your `ToDomain`, including any path.
 > Swap out `deploy` with `update` to run again. `delete` to tear it all down.
 

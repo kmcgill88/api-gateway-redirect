@@ -147,18 +147,17 @@ Resources:
     Properties:
       Code:
         ZipFile: >
-          exports.handler = (event, context, callback) => {
-              const redirectLocation = process.env.REDIRECT_DOMAIN + event.path;
-              console.log('Redirecting from: ', event.headers.Referer || 'https://' +event.headers.Host + event.path, ' to: ', redirectLocation);
-              callback(null, {
+          exports.handler = async (event) => {
+              const redirectLoation = process.env.REDIRECT_DOMAIN + event.path;
+              console.log('Redirecting from: ', event.headers.Referer || 'https://' +event.headers.Host + event.path, ' to: ', redirectLoation);
+              return {
                 isBase64Encoded: false,
                 statusCode: 301,
                 headers: {
                   'Content-Type': 'text/html',
-                  'Location' : redirectLocation
+                  'Location' : redirectLoation
                 },
-                body:null,
-              });
+              };
           };
       Environment:
         Variables:
@@ -168,8 +167,8 @@ Resources:
       Handler: index.handler
       MemorySize: 128
       Role: !GetAtt Role.Arn
-      Runtime: nodejs6.10
-      Timeout: 1
+      Runtime: nodejs12.x
+      Timeout: 5
 
   Role:
     Type: AWS::IAM::Role

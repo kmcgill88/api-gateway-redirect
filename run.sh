@@ -10,6 +10,7 @@ if [[ $1 == "deploy" ]]; then
         ParameterKey=ToDomain,ParameterValue=$4 \
         ParameterKey=HostedZoneId,ParameterValue=$5 \
         ParameterKey=FromDomainAcmArn,ParameterValue=$6
+  aws cloudformation wait stack-create-complete --stack-name URL-REDIRECTER
 fi
 if [[ $1 == "update" ]]; then
   aws cloudformation update-stack \
@@ -22,6 +23,7 @@ if [[ $1 == "update" ]]; then
         ParameterKey=ToDomain,ParameterValue=$4 \
         ParameterKey=HostedZoneId,ParameterValue=$5 \
         ParameterKey=FromDomainAcmArn,ParameterValue=$6
+  aws cloudformation wait stack-update-complete --stack-name URL-REDIRECTER
 fi
 if [[ $1 == "delete" ]]; then
   aws cloudformation delete-stack --stack-name URL-REDIRECTER
